@@ -1,0 +1,74 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String        @id @default(uuid())
+  username    String        @unique
+  email       String        @unique
+  password    String
+  role        Role
+  submissions Submission[]
+  leaderboards Leaderboard[]
+}
+
+model Challenge {
+  id          String       @id @default(uuid())
+  index       Int
+  title       String
+  description   String
+  contestId   String
+  contest     Contest      @relation(fields: [contestId], references: [id])
+  submissions Submission[]
+  maxPoints   Int
+}
+
+model Contest {
+  id          String        @id @default(uuid())
+  title       String
+  description String
+  startTime   DateTime
+  endTime     DateTime
+  leaderboards Leaderboard[]
+  challenges  Challenge[]
+}
+
+model Submission {
+  id     String @id @default(uuid())
+  points Int
+  submittedAt   DateTime    @default(now())
+  challengeId String
+  challenge   Challenge @relation(fields: [challengeId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+}
+
+model Leaderboard {
+  userId    String
+  contestId String
+  rank      Int
+  score     Int
+
+  contest Contest @relation(fields: [contestId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@id([userId, contestId])
+  @@unique([contestId, rank])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
