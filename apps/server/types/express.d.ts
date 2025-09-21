@@ -5,6 +5,7 @@ declare global {
     export interface Request {
       userId?: string;
       adminId?: string;
+      contest?: any;
     }
   }
 }
