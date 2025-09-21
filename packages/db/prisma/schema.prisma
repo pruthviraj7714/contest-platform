@@ -19,6 +19,7 @@ model User {
   username    String?        @unique
   email       String        @unique
   role        Role
+  contests    Contest[]   
   submissions Submission[]
   leaderboards Leaderboard[]
 }
@@ -33,7 +34,7 @@ model Challenge {
   startTime   DateTime
   endTime     DateTime
   isActive    Boolean   @default(false)
-  contest     Contest      @relation(fields: [contestId], references: [id])
+  contest     Contest      @relation(fields: [contestId], references: [id], onDelete: Cascade)
   submissions Submission[]
   maxPoints   Int
 
@@ -46,6 +47,8 @@ model Contest {
   description String
   startTime   DateTime
   endTime     DateTime
+  adminId      String
+  admin        User   @relation(fields: [adminId], references: [id], onDelete: Cascade)
   leaderboards Leaderboard[]
   challenges  Challenge[]
 }
@@ -55,9 +58,9 @@ model Submission {
   points Int
   submittedAt   DateTime    @default(now())
   challengeId String
-  challenge   Challenge @relation(fields: [challengeId], references: [id])
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
   userId      String
-  user        User      @relation(fields: [userId], references: [id])
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Leaderboard {
@@ -66,8 +69,8 @@ model Leaderboard {
   rank      Int
   score     Int
 
-  contest Contest @relation(fields: [contestId], references: [id])
-  user    User    @relation(fields: [userId], references: [id])
+  contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, contestId])
   @@unique([contestId, rank])
