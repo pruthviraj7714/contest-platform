@@ -1,7 +1,9 @@
 import z from "zod";
 
-export const AuhtSchema = z.email({
-  error: "Email Should be valid",
+export const AuhtSchema = z.object({
+  email: z.email({
+    error: "Email Should be valid",
+  }),
 });
 
 export const ChallangeSchema = z.object({
@@ -36,4 +38,8 @@ export const EditContestSchema = z.object({
   description: z.string().min(5, {}),
   startTime: z.date(),
   endTime: z.date(),
+});
+
+export const SetUsernameSchema = z.object({
+  username : z.string().min(5)
 })
