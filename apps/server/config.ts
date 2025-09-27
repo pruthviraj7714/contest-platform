@@ -8,3 +8,4 @@ export const SMTP_PASS = process.env.SMTP_PASS!;
 export const FRONTEND_URL = process.env.FRONTEND_URL!;
 export const BACKEND_URL = process.env.BACKEND_URL!;
 export const FROM_EMAIL_ADDRESS = process.env.FROM_EMAIL_ADDRESS!;
+export const ADMIN_EMAIL = process.env.ADMIN_EMAIL!;

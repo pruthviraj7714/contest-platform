@@ -4,6 +4,7 @@ import prisma from "@repo/db";
 import transporter from "../email/transporter";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 import {
+  ADMIN_EMAIL,
   ADMIN_JWT_SECRET,
   BACKEND_URL,
   EMAIL_JWT_SECRET,
@@ -11,12 +12,13 @@ import {
   FRONTEND_URL,
   USER_JWT_SECRET,
 } from "../config";
+import userMiddleware from "../middlewares/userMiddleware";
 
 const userRouter = Router();
 
 userRouter.post("/auth/magic-login", async (req, res) => {
   try {
-    const { data: email, success } = AuhtSchema.safeParse(req.body);
+    const { data, success } = AuhtSchema.safeParse(req.body);
 
     if (!success) {
       res.status(400).json({
@@ -25,25 +27,41 @@ userRouter.post("/auth/magic-login", async (req, res) => {
       return;
     }
 
-    const user = await prisma.user.upsert({
-      where: {
-        email,
-      },
-      update: {},
-      create: {
-        email,
-        role: "USER",
-      },
-    });
+    const { email } = data;
 
-    const token = jwt.sign(
-      {
-        email: user.email,
-        role: user.role,
-      },
-      EMAIL_JWT_SECRET,
-      { expiresIn: "15m" }
-    );
+    const isAdmin = ADMIN_EMAIL === email;
+
+    let token: string;
+    if (isAdmin) {
+      token = jwt.sign(
+        {
+          email: email,
+          role: "ADMIN",
+        },
+        EMAIL_JWT_SECRET,
+        { expiresIn: "15m" }
+      );
+    } else {
+      const user = await prisma.user.upsert({
+        where: {
+          email,
+        },
+        update: {},
+        create: {
+          email,
+          role: "USER",
+        },
+      });
+
+      token = jwt.sign(
+        {
+          email: user.email,
+          role: user.role,
+        },
+        EMAIL_JWT_SECRET,
+        { expiresIn: "15m" }
+      );
+    }
 
     if (process.env.NODE_ENV === "production") {
       await transporter.sendMail({
@@ -147,6 +165,102 @@ userRouter.get("/auth/post", async (req, res) => {
     } else {
       return res.redirect(`${FRONTEND_URL}/admin-dashboard`);
     }
+  } catch (error) {
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
+});
+
+userRouter.get("/check-username", async (req, res) => {
+  try {
+    const username = req.query.username as string;
+
+    if (!username) {
+      return res.status(400).json({
+        message: "Username not provided",
+        success: false,
+      });
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { username },
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: "Username already exists",
+        success: false,
+      });
+    }
+
+    return res.status(200).json({
+      message: "Username is available",
+      success: true,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Internal server error",
+      success: false,
+    });
+  }
+});
+
+userRouter.post("/set-username", userMiddleware, async (req, res) => {
+  try {
+    
+  } catch (error) {
+    res.status(500).json({
+      message : "Internal Server Error"
+    })
+  }
+})
+
+userRouter.get("/me", userMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId!;
+
+    const user = await prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
+
+    if (!user) {
+      res.status(401).json({
+        message: "User not found!",
+      });
+      return;
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({
+      message: "Interal server Error",
+    });
+  }
+});
+
+userRouter.get("/me/contests", userMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId!;
+
+    const contests = await prisma.contest.findMany({
+      where: {
+        challenges: {
+          some: {
+            submissions: {
+              some: {
+                userId,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    res.status(200).json(contests);
   } catch (error) {
     res.status(500).json({
       message: "Internal Server Error",
