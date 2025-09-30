@@ -4,9 +4,7 @@ import { verify, type JwtPayload } from "jsonwebtoken";
 
 const adminMiddlware = (req: Request, res: Response, next: NextFunction) => {
   try {
-    const authHeaders = req.headers.authorization;
-
-    const authToken = authHeaders?.split(" ")[1];
+    const authToken = req.cookies.authToken;
 
     if (!authToken) {
         return res.status(401).json({
@@ -23,7 +21,7 @@ const adminMiddlware = (req: Request, res: Response, next: NextFunction) => {
       return;
     }
 
-    req.adminId = payload.sub;
+    req.adminId = payload.id;
     next();
   } catch (error) {
     res.status(401).json({

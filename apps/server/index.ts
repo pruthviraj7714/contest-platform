@@ -3,12 +3,17 @@ import cors from "cors";
 import userRouter from "./routes/user.routes";
 import adminRouter from "./routes/admin.routes";
 import contestRouter from "./routes/contest.routes";
+import cookieParser from "cookie-parser";
 import { PORT } from "./config";
 
 const app = express();
 
 app.use(express.json());
-app.use(cors());
+app.use(cookieParser());
+app.use(cors({
+  origin: "http://localhost:3000",
+  credentials: true,
+}));
 
 app.get('/', (req, res) => {
     res.status(200).json({

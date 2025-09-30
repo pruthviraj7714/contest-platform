@@ -4,9 +4,7 @@ import { USER_JWT_SECRET } from "../config";
 
 const userMiddleware = (req: Request, res: Response, next: NextFunction) => {
   try {
-    const authHeaders = req.headers.authorization;
-
-    const authToken = authHeaders?.split(" ")[1];
+    const authToken = req.cookies.authToken;
 
     if (!authToken) {
       res.status(400).json({

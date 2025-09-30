@@ -70,6 +70,13 @@ adminRouter.get("/contests", adminMiddlware, async (req, res) => {
       where: {
         adminId,
       },
+      include : {
+        _count : {
+          select : {
+            challenges : true
+          }
+        }
+      }
     });
 
     res.status(200).json(contests || []);
