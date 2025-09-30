@@ -8,6 +8,7 @@ import {
 } from "@repo/common";
 import prisma from "@repo/db";
 import verifyAdminContestOwnership from "../middlewares/verifyAdminContestOwnership";
+import contestQueue from "../queue";
 
 const adminRouter = Router();
 
@@ -44,6 +45,22 @@ adminRouter.post("/contest", adminMiddlware, async (req, res) => {
       },
     });
 
+    await contestQueue.add(
+      "ContestStarted",
+      {
+        contestId: contest.id,
+      },
+      { delay: contest.startTime.getTime() - Date.now() }
+    );
+
+    await contestQueue.add(
+      "ContestEnded",
+      {
+        contestId: contest.id,
+      },
+      { delay: contest.endTime.getTime() - Date.now() }
+    );
+
     res.status(201).json({
       message: "Contest Successfully Created!",
       id: contest.id,
@@ -70,13 +87,14 @@ adminRouter.get("/contests", adminMiddlware, async (req, res) => {
       where: {
         adminId,
       },
-      include : {
-        _count : {
-          select : {
-            challenges : true
-          }
-        }
-      }
+      include: {
+        _count: {
+          select: {
+            challenges: true,
+            leaderboards: true,
+          },
+        },
+      },
     });
 
     res.status(200).json(contests || []);
@@ -128,70 +146,75 @@ adminRouter.delete(
   }
 );
 
-adminRouter.put("/contest/:contestId", adminMiddlware, verifyAdminContestOwnership, async (req, res) => {
-  try {
-    const contest = req.contest;
+adminRouter.put(
+  "/contest/:contestId",
+  adminMiddlware,
+  verifyAdminContestOwnership,
+  async (req, res) => {
+    try {
+      const contest = req.contest;
 
-    const { data, success, error } = EditContestSchema.safeParse(req.body);
+      const { data, success, error } = EditContestSchema.safeParse(req.body);
 
-    if (!success) {
-      res.status(400).json({
-        message: "Invalid Contest Data",
-        errors: error.message,
+      if (!success) {
+        res.status(400).json({
+          message: "Invalid Contest Data",
+          errors: error.message,
+        });
+        return;
+      }
+
+      if (new Date(contest.endTime).getTime() <= Date.now()) {
+        res.status(409).json({
+          message: "Contest Already Ended You Can't make Changes Now",
+        });
+        return;
+      }
+
+      const current = Date.now();
+
+      if (
+        current >= new Date(contest.startTime).getTime() &&
+        current <= new Date(contest.endTime).getTime()
+      ) {
+        res.status(409).json({
+          message: "Contest already started, you can't make changes now",
+        });
+        return;
+      }
+
+      const { description, endTime, startTime, title } = data;
+
+      await prisma.$transaction(async (tx) => {
+        await tx.contest.update({
+          where: {
+            id: contest.id,
+          },
+          data: {
+            title,
+            startTime,
+            description,
+            endTime,
+          },
+        });
+
+        await tx.challenge.deleteMany({
+          where: {
+            contestId: contest.id,
+          },
+        });
       });
-      return;
+
+      res.status(200).json({
+        message: "Contest Data Successfully Updated",
+      });
+    } catch (error) {
+      res.status(500).json({
+        message: "Internal Server Error",
+      });
     }
-
-    if (new Date(contest.endTime).getTime() <= Date.now()) {
-      res.status(409).json({
-        message: "Contest Already Ended You Can't make Changes Now",
-      });
-      return;
-    }
-
-    const current = Date.now();
-
-    if (
-      current >= new Date(contest.startTime).getTime() &&
-      current <= new Date(contest.endTime).getTime()
-    ) {
-      res.status(409).json({
-        message: "Contest already started, you can't make changes now",
-      });
-      return;
-    }
-
-    const { description, endTime, startTime, title } = data;
-
-    await prisma.$transaction(async (tx) => {
-      await tx.contest.update({
-        where: {
-          id: contest.id,
-        },
-        data: {
-          title,
-          startTime,
-          description,
-          endTime,
-        },
-      });
-
-      await tx.challenge.deleteMany({
-        where: {
-          contestId: contest.id,
-        },
-      });
-    });
-
-    res.status(200).json({
-      message: "Contest Data Successfully Updated",
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: "Internal Server Error",
-    });
   }
-});
+);
 
 adminRouter.post(
   "/contest/:contestId/challenges",
@@ -233,6 +256,22 @@ adminRouter.post(
           contestId: contest.id,
         },
       });
+
+      await contestQueue.add(
+        "ChallengeStarted",
+        {
+          challengeId: challenge.id,
+        },
+        { delay: challenge.startTime.getTime() - Date.now() }
+      );
+
+      await contestQueue.add(
+        "ChallengeEnded",
+        {
+          challengeId: challenge.id,
+        },
+        { delay: challenge.endTime.getTime() - Date.now() }
+      );
 
       res.status(201).json({
         message: "challange Successfully Added to Contest",
@@ -417,7 +456,7 @@ adminRouter.get(
 
       const leaderboards = await prisma.leaderboard.findMany({
         where: {
-          contestId : contest.id,
+          contestId: contest.id,
         },
         orderBy: {
           rank: "asc",
