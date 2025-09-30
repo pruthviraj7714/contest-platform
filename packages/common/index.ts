@@ -29,8 +29,8 @@ export const EditChallangeSchema = z.object({
 export const ContestSchema = z.object({
   title: z.string().min(5, {}),
   description: z.string().min(5, {}),
-  startTime: z.date(),
-  endTime: z.date(),
+  startTime: z.string(),
+  endTime: z.string(),
 });
 
 export const EditContestSchema = z.object({
