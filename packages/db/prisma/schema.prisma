@@ -15,12 +15,12 @@ datasource db {
 }
 
 model User {
-  id          String        @id @default(uuid())
-  username    String?        @unique
-  email       String        @unique
-  role        Role
-  contests    Contest[]   
-  submissions Submission[]
+  id           String        @id @default(uuid())
+  username     String?       @unique
+  email        String        @unique
+  role         Role
+  contests     Contest[]
+  submissions  Submission[]
   leaderboards Leaderboard[]
 }
 
@@ -28,12 +28,12 @@ model Challenge {
   id          String       @id @default(uuid())
   index       Int
   title       String
-  description   String
+  description String
   contestId   String
-  notionDocId   String
+  notionDocId String
   startTime   DateTime
   endTime     DateTime
-  isActive    Boolean   @default(false)
+  isActive    Boolean      @default(false)
   contest     Contest      @relation(fields: [contestId], references: [id], onDelete: Cascade)
   submissions Submission[]
   maxPoints   Int
@@ -42,21 +42,22 @@ model Challenge {
 }
 
 model Contest {
-  id          String        @id @default(uuid())
-  title       String
-  description String
-  startTime   DateTime
-  endTime     DateTime
+  id           String        @id @default(uuid())
+  title        String
+  description  String
+  status       ContestStatus @default(UPCOMING)
+  startTime    DateTime
+  endTime      DateTime
   adminId      String
-  admin        User   @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  admin        User          @relation(fields: [adminId], references: [id], onDelete: Cascade)
   leaderboards Leaderboard[]
-  challenges  Challenge[]
+  challenges   Challenge[]
 }
 
 model Submission {
-  id     String @id @default(uuid())
-  points Int
-  submittedAt   DateTime    @default(now())
+  id          String    @id @default(uuid())
+  points      Int
+  submittedAt DateTime  @default(now())
   challengeId String
   challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
   userId      String
@@ -74,6 +75,12 @@ model Leaderboard {
 
   @@id([userId, contestId])
   @@unique([contestId, rank])
+}
+
+enum ContestStatus {
+  ACTIVE
+  ENDED
+  UPCOMING
 }
 
 enum Role {
